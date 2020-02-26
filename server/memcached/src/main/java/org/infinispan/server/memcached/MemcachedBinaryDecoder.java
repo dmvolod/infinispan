@@ -17,9 +17,6 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
 
-import static org.infinispan.server.memcached.TextProtocolUtil.*;
-import static org.infinispan.server.memcached.TextProtocolUtil.skipLine;
-
 public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDecoderState>  {
     public MemcachedBinaryDecoder(AdvancedCache<byte[], byte[]> memcachedCache, ScheduledExecutorService scheduler,
                                   NettyTransport transport, Predicate<? super String> ignoreCache) {
