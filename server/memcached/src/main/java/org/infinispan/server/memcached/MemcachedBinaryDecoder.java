@@ -117,7 +117,7 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     }
 
     void decodeExtras(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasExtras = readElement(buffer, element, header.exstrasLength);
+        boolean hasExtras = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.exstrasLength);
         if (!hasExtras) {
             return;
         }
@@ -130,7 +130,7 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     }
 
     void decodeKey(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasKey = readElement(buffer, element, header.keyLength - header.exstrasLength);
+        boolean hasKey = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.keyLength);
         if (!hasKey) {
             return;
         }
@@ -143,7 +143,7 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     }
 
     void decodeValue(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasValue = readElement(buffer, element, header.bodyLength - header.keyLength - header.exstrasLength);
+        boolean hasValue = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.bodyLength);
         if (!hasValue) {
             return;
         }
@@ -204,18 +204,22 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
         return true;
     }
 
-    private boolean readElement(ByteBuf buffer, ByteArrayOutputStream element, long size) throws IOException {
-        for (long i = offset; i < size; i++) {
+    private boolean readElement(ByteBuf buffer, ByteArrayOutputStream element, long position) throws IOException {
+        long start = offset;
+        System.out.println("position: " + position);
+        System.out.println("offset: " + offset);
+        for (long i = offset; i < position; i++) {
             byte next;
             try {
                 next = buffer.readByte();
                 offset++;
             } catch (IndexOutOfBoundsException e) {
+                System.out.println(e);
                 return false;
             }
             element.write(next);
         }
-        log.debugf("Reading %d element bytes", size);
+        log.debugf("Reading %d element bytes", position - start);
         return true;
     }
 
