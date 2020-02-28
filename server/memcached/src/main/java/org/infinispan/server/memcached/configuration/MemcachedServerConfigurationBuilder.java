@@ -51,6 +51,11 @@ public class MemcachedServerConfigurationBuilder extends ProtocolServerConfigura
       return this;
    }
 
+   public MemcachedServerConfigurationBuilder protocol(MemcachedProtocol memcachedProtocol) {
+      attributes.attribute(MemcachedServerConfiguration.PROTOCOL).set(memcachedProtocol);
+      return this;
+   }
+
    @Override
    public MemcachedServerConfiguration create() {
       return new MemcachedServerConfiguration(attributes.protect(), ssl.create());

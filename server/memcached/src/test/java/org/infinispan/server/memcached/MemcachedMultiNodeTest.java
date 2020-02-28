@@ -1,6 +1,6 @@
 package org.infinispan.server.memcached;
 
-import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedClient;
+import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedTextClient;
 import static org.infinispan.server.memcached.test.MemcachedTestingUtil.startMemcachedTextServer;
 
 import java.io.IOException;
@@ -46,7 +46,7 @@ abstract class MemcachedMultiNodeTest extends MultipleCacheManagersTest {
       servers.forEach(s -> {
          MemcachedClient client;
          try {
-            client = createMemcachedClient(60000, s.getPort());
+            client = createMemcachedTextClient(60000, s.getPort());
          } catch (IOException e) {
             throw new AssertionError(e);
          }

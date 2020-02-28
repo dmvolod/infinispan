@@ -15,6 +15,7 @@ import org.infinispan.manager.EmbeddedCacheManager;
 import org.infinispan.server.core.AbstractProtocolServer;
 import org.infinispan.server.core.transport.NettyChannelInitializer;
 import org.infinispan.server.core.transport.NettyInitializers;
+import org.infinispan.server.memcached.configuration.MemcachedProtocol;
 import org.infinispan.server.memcached.configuration.MemcachedServerConfiguration;
 import org.infinispan.server.memcached.logging.Log;
 
@@ -69,7 +70,11 @@ public class MemcachedServer extends AbstractProtocolServer<MemcachedServerConfi
 
    @Override
    public ChannelInboundHandler getDecoder() {
-      return new MemcachedDecoder(memcachedCache, scheduler, transport, this::isCacheIgnored, configuration.clientEncoding());
+      if (configuration.protocol() == MemcachedProtocol.TEXT) {
+         return new MemcachedDecoder(memcachedCache, scheduler, transport, this::isCacheIgnored, configuration.clientEncoding());
+      } else {
+         return new MemcachedBinaryDecoder(memcachedCache, scheduler, transport, this::isCacheIgnored);
+      }
    }
 
    @Override

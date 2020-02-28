@@ -49,7 +49,7 @@ public class MemcachedEncodingTest extends SingleCacheManagerTest {
       cacheManager = TestCacheManagerFactory.createCacheManager(global, c);
       memcachedServer = MemcachedTestingUtil.startMemcachedTextServer(cacheManager);
       port = memcachedServer.getPort();
-      memcachedClient = MemcachedTestingUtil.createMemcachedClient(60000, port);
+      memcachedClient = MemcachedTestingUtil.createMemcachedTextClient(60000, port);
       GlobalComponentRegistry gcr = TestingUtil.extractGlobalComponentRegistry(cacheManager);
       interpreter = gcr.getComponent(Interpreter.class);
       return cacheManager;

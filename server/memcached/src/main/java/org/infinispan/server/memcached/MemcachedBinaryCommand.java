@@ -1,12 +1,12 @@
 package org.infinispan.server.memcached;
 
 public enum MemcachedBinaryCommand {
-    Get(0x00),
-    Set(0x01);
+    Get((byte)0x00),
+    Set((byte)0x01);
 
-    public final int command;
+    public final byte command;
 
-    private MemcachedBinaryCommand(int command) {
+    private MemcachedBinaryCommand(byte command) {
         this.command = command;
     }
 

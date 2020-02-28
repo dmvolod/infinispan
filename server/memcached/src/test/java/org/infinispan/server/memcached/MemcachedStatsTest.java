@@ -1,6 +1,6 @@
 package org.infinispan.server.memcached;
 
-import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedClient;
+import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedTextClient;
 import static org.infinispan.test.TestingUtil.k;
 import static org.infinispan.test.TestingUtil.sleepThread;
 import static org.infinispan.test.TestingUtil.v;
@@ -215,7 +215,7 @@ public class MemcachedStatsTest extends MemcachedSingleNodeTest {
            throws IOException {
       if (from >= number) return clients;
       else {
-         MemcachedClient newClient = createMemcachedClient(60000, server.getPort());
+         MemcachedClient newClient = createMemcachedTextClient(60000, server.getPort());
          Object value = newClient.get("a");
          // 'Use' the value
          if (value != null && value.hashCode() % 1000 == 0) {

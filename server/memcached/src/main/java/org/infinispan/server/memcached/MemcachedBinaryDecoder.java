@@ -1,11 +1,12 @@
 package org.infinispan.server.memcached;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
+//import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ReplayingDecoder;
 import org.infinispan.AdvancedCache;
 import org.infinispan.commons.logging.LogFactory;
+import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.server.core.transport.NettyTransport;
 import org.infinispan.server.memcached.logging.Log;
 
@@ -13,9 +14,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
+
+import static org.infinispan.server.memcached.BinaryProtocolUtil.decodeByte;
+import static org.infinispan.server.memcached.BinaryProtocolUtil.decodeShort;
+import static org.infinispan.server.memcached.BinaryProtocolUtil.decodeUnsignedInt;
 
 public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDecoderState>  {
     public MemcachedBinaryDecoder(AdvancedCache<byte[], byte[]> memcachedCache, ScheduledExecutorService scheduler,
@@ -36,10 +40,21 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     private final boolean isStatsEnabled;
     private final static Log log = LogFactory.getLog(MemcachedBinaryDecoder.class, Log.class);
     private final static boolean isTrace = log.isTraceEnabled();
-    private ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+    private long offset = 0;
+    private ByteArrayOutputStream element = new ByteArrayOutputStream();
+
+    long defaultLifespanTime;
+    long defaultMaxIdleTime;
+
+    protected byte[] extras;
+    protected byte[] key;
+    protected byte[] rawValue;
+    protected Configuration cacheConfiguration;
 
     protected RequestHeader header;
 
+    protected static final int HEADER_PACKAGE_SIZE = 24;
+    protected static final int HEADER_DATA_TYPE = 0x00;
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -47,7 +62,8 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
             decodeDispatch(ctx, in, out);
         } finally {
             // reset in all cases
-            byteBuffer.reset();
+            element.reset();
+            offset = 0;
         }
     }
 
@@ -58,19 +74,17 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
             MemcachedBinaryDecoderState state = state();
             switch (state) {
                 case DECODE_HEADER:
-                    decodeHeader(ctx, in, state, out);
+                    decodeHeader(ctx, in);
                     break;
-                    /*
+                case DECODE_EXTRAS:
+                    decodeExtras(ctx, in);
+                    break;
                 case DECODE_KEY:
                     decodeKey(ctx, in);
                     break;
-                case DECODE_PARAMETERS:
-                    decodeParameters(ctx, in, state);
-                    break;
                 case DECODE_VALUE:
-                    decodeValue(ctx, in, state);
+                    decodeValue(ctx, in);
                     break;
-                     */
             }
         } catch (IOException | NumberFormatException e) {
             //ctx.pipeline().fireExceptionCaught(new MemcachedException(CLIENT_ERROR_BAD_FORMAT + e.getMessage(), e));
@@ -79,47 +93,140 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
         }
     }
 
-    void decodeHeader(ChannelHandlerContext ctx, ByteBuf buffer, MemcachedBinaryDecoderState state, List<Object> out)
-            throws CacheUnavailableException, IOException {
+    void decodeHeader(ChannelHandlerContext ctx, ByteBuf buffer) throws CacheUnavailableException, IOException {
         header = new RequestHeader();
-        Optional<Boolean> endOfOp = readHeader(buffer, header);
-        if (!endOfOp.isPresent()) {
+        boolean hasHeader = readHeader(buffer, header);
+        if (!hasHeader) {
             // Something went wrong reading the header, so get more bytes.
-            // It can happen with Hot Rod if the header is completely corrupted
             return;
         }
 
-
-        Channel ch = ctx.channel();
         String cacheName = cache.getName();
-        if (ignoreCache.test(cacheName)) throw new CacheUnavailableException(cacheName);
+        if (ignoreCache.test(cacheName)) {
+            throw new CacheUnavailableException(cacheName);
+        }
+        cacheConfiguration = getCacheConfiguration();
+        defaultLifespanTime = cacheConfiguration.expiration().lifespan();
+        defaultMaxIdleTime = cacheConfiguration.expiration().maxIdle();
 
+        if (header.exstrasLength > 0) {
+            checkpoint(MemcachedBinaryDecoderState.DECODE_EXTRAS);
+        } else {
+            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
+        }
     }
 
-    private Optional<Boolean> readHeader(ByteBuf buffer, RequestHeader header) throws IOException {
-        short magic = buffer.getByte(0);
+    void decodeExtras(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
+        boolean hasExtras = readElement(buffer, element, header.exstrasLength);
+        if (!hasExtras) {
+            return;
+        }
+        extras = element.toByteArray();
+        System.out.println("extras: " + extras);
+        System.out.println("buffer: " + buffer);
+        if (header.keyLength > 0) {
+            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
+        }
+    }
+
+    void decodeKey(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
+        boolean hasKey = readElement(buffer, element, header.keyLength - header.exstrasLength);
+        if (!hasKey) {
+            return;
+        }
+        key = element.toByteArray();
+        System.out.println("key: " + key);
+        System.out.println("buffer: " + buffer);
+        if (header.bodyLength > 0) {
+            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
+        }
+    }
+
+    void decodeValue(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
+        boolean hasValue = readElement(buffer, element, header.bodyLength - header.keyLength - header.exstrasLength);
+        if (!hasValue) {
+            return;
+        }
+        rawValue = element.toByteArray();
+        System.out.println("value: " + rawValue);
+        System.out.println("buffer: " + buffer);
+    }
+
+    private boolean readHeader(ByteBuf buffer, RequestHeader header) throws IOException {
+        boolean hasHeader = readElement(buffer, element, HEADER_PACKAGE_SIZE);
+        if (!hasHeader) {
+            return false;
+        }
+
+        byte[] headerStructure = element.toByteArray();
+        byte magic = headerStructure[0];
+        short command = headerStructure[1];
+        int dataType = decodeByte(headerStructure, 5);
+
+        System.out.println("offset: " + offset);
+        System.out.println("magic: " + magic);
+        System.out.println("request: " + MemcachedBinaryMagic.valueOfCode(magic));
+        System.out.println("buffer: " + buffer);
+
         if ((MemcachedBinaryMagic.valueOfCode(magic) == null) || (MemcachedBinaryMagic.valueOfCode(magic) != MemcachedBinaryMagic.Request)) {
-            return Optional.of(false);
+            throw new StreamCorruptedException("Invalid magic: " + magic);
+        } else {
+            header.magic = MemcachedBinaryMagic.valueOfCode(magic);
         }
 
-        boolean endOfOp = readElement(buffer, byteBuffer);
-        String streamOp = extractString(byteBuffer);
-        MemcachedOperation op = toRequest(streamOp, endOfOp, buffer);
-        if (op == MemcachedOperation.StatsRequest && !endOfOp) {
-            String line = readDiscardedLine(buffer).trim();
-            if (!line.isEmpty())
-                throw new StreamCorruptedException("Stats command does not accept arguments: " + line);
-            else
-                endOfOp = true;
-        }
-        if (op == MemcachedOperation.VerbosityRequest) {
-            if (!endOfOp)
-                skipLine(buffer); // Read rest of line to clear the operation
-            throw new StreamCorruptedException("Memcached 'verbosity' command is unsupported");
+        if (MemcachedBinaryCommand.valueOfCode(command) == null) {
+            throw new StreamCorruptedException("Unexpected response command value: " + command);
+        } else {
+            header.command = MemcachedBinaryCommand.valueOfCode(command);
         }
 
-        header.operation = op;
-        return Optional.of(endOfOp);
+        if (dataType == HEADER_DATA_TYPE) {
+            header.dataType = dataType;
+        } else {
+            throw new StreamCorruptedException("Unexpected data type value: " + dataType);
+        }
+
+        header.keyLength = decodeShort(headerStructure, 2);
+        header.exstrasLength = decodeByte(headerStructure, 4);
+        header.vBucketId = decodeShort(headerStructure, 6);
+        header.bodyLength = decodeUnsignedInt(headerStructure, 8);
+        header.opaque = decodeUnsignedInt(headerStructure, 12);
+        header.cas = decodeUnsignedInt(headerStructure, 16);
+
+        System.out.println("keyLength: " + header.keyLength);
+        System.out.println("exstrasLength: " + header.exstrasLength);
+        System.out.println("dataType: " + header.dataType);
+        System.out.println("vBucketId: " + header.vBucketId);
+        System.out.println("bodyLength: " + header.bodyLength);
+        System.out.println("opaque: " + header.opaque);
+        System.out.println("cas: " + header.cas);
+
+        return true;
+    }
+
+    private boolean readElement(ByteBuf buffer, ByteArrayOutputStream element, long size) throws IOException {
+        for (long i = offset; i < size; i++) {
+            byte next;
+            try {
+                next = buffer.readByte();
+                offset++;
+            } catch (IndexOutOfBoundsException e) {
+                return false;
+            }
+            element.write(next);
+        }
+        log.debugf("Reading %d element bytes", size);
+        return true;
+    }
+
+    private Configuration getCacheConfiguration() {
+        return cache.getCacheConfiguration();
+    }
+
+    @Override
+    protected void checkpoint(MemcachedBinaryDecoderState state) {
+        element.reset();
+        super.checkpoint(state);
     }
 
     class MemcachedBinaryException extends Exception {
@@ -131,13 +238,13 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     class RequestHeader {
         MemcachedBinaryMagic magic;
         MemcachedBinaryCommand command;
-        short keyLength;
-        byte exstrasLength;
-        byte dataType;
-        byte vBucketId;
-        int bodyLength;
-        int opaque;
-        int cas;
+        int keyLength;
+        int exstrasLength;
+        int dataType;
+        int vBucketId;
+        long bodyLength;
+        long opaque;
+        long cas;
 
         @Override
         public String toString() {
@@ -148,12 +255,12 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
     }
 
     enum MemcachedBinaryMagic {
-        Request(0x80),
-        Response(0x81);
+        Request((byte)0x80),
+        Response((byte)0x81);
 
-        public final int magic;
+        public final byte magic;
 
-        private MemcachedBinaryMagic(int magic) {
+        private MemcachedBinaryMagic(byte magic) {
             this.magic = magic;
         }
 

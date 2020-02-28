@@ -5,10 +5,12 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.spy.memcached.BinaryConnectionFactory;
 import org.infinispan.Cache;
 import org.infinispan.commons.dataconversion.MediaType;
 import org.infinispan.commons.logging.LogFactory;
 import org.infinispan.manager.EmbeddedCacheManager;
+import org.infinispan.server.memcached.MemcachedBinaryDecoder;
 import org.infinispan.server.memcached.MemcachedDecoder;
 import org.infinispan.server.memcached.MemcachedServer;
 import org.infinispan.server.memcached.configuration.MemcachedServerConfigurationBuilder;
@@ -18,6 +20,8 @@ import org.infinispan.test.fwk.TestResourceTracker;
 import io.netty.channel.ChannelInboundHandler;
 import net.spy.memcached.DefaultConnectionFactory;
 import net.spy.memcached.MemcachedClient;
+
+import static org.infinispan.server.memcached.configuration.MemcachedProtocol.BINARY;
 
 /**
  * Utils for Memcached tests.
@@ -30,13 +34,25 @@ public class MemcachedTestingUtil {
 
    private static final String host = "127.0.0.1";
 
-   public static MemcachedClient createMemcachedClient(long timeout, int port) throws IOException {
+   public static MemcachedClient createMemcachedTextClient(long timeout, int port) throws IOException {
       DefaultConnectionFactory d = new DefaultConnectionFactory() {
          @Override
          public long getOperationTimeout() {
             return timeout;
          }
       };
+
+      return new MemcachedClient(d, Collections.singletonList(new InetSocketAddress(host, port)));
+   }
+
+   public static MemcachedClient createMemcachedBinaryClient(long timeout, int port) throws IOException {
+      BinaryConnectionFactory d = new BinaryConnectionFactory() {
+         @Override
+         public long getOperationTimeout() {
+            return timeout;
+         }
+      };
+
       return new MemcachedClient(d, Collections.singletonList(new InetSocketAddress(host, port)));
    }
 
@@ -81,6 +97,42 @@ public class MemcachedTestingUtil {
       String serverName = TestResourceTracker.getCurrentTestShortName();
       server.start(new MemcachedServerConfigurationBuilder().name(serverName).host(host).port(port).build(),
             cacheManager);
+      return server;
+   }
+
+   public static MemcachedServer startMemcachedBinaryServer(EmbeddedCacheManager cacheManager) {
+      return startMemcachedBinaryServer(cacheManager, UniquePortThreadLocal.INSTANCE.get());
+   }
+
+   public static MemcachedServer startMemcachedBinaryServer(EmbeddedCacheManager cacheManager, String cacheName) {
+      return startMemcachedBinaryServer(cacheManager, UniquePortThreadLocal.INSTANCE.get(), cacheName);
+   }
+
+   public static MemcachedServer startMemcachedBinaryServer(EmbeddedCacheManager cacheManager, int port) {
+      MemcachedServer server = new MemcachedServer();
+      String serverName = TestResourceTracker.getCurrentTestShortName();
+      server.start(new MemcachedServerConfigurationBuilder().name(serverName).host(host).port(port).protocol(BINARY).build(),
+              cacheManager);
+      return server;
+   }
+
+   public static MemcachedServer startMemcachedBinaryServer(EmbeddedCacheManager cacheManager, int port, String cacheName) {
+      MemcachedServer server = new MemcachedServer() {
+         @Override
+         public ChannelInboundHandler getDecoder() {
+            Cache<byte[], byte[]> cache = getCacheManager().getCache(cacheName);
+            return new MemcachedBinaryDecoder(cache.getAdvancedCache(), scheduler, transport, s -> false);
+         }
+
+         @Override
+         protected void startDefaultCache() {
+            getCacheManager().getCache(cacheName);
+         }
+
+      };
+      String serverName = TestResourceTracker.getCurrentTestShortName();
+      server.start(new MemcachedServerConfigurationBuilder().name(serverName).host(host).port(port).protocol(BINARY).build(),
+              cacheManager);
       return server;
    }
 

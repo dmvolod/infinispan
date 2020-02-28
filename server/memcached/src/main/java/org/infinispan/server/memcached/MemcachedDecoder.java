@@ -342,7 +342,6 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
       return createSuccessResponse();
    }
 
-
    private Optional<Boolean> readHeader(ByteBuf buffer, RequestHeader header) throws IOException {
       boolean endOfOp = readElement(buffer, byteBuffer);
       String streamOp = extractString(byteBuffer);

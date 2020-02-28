@@ -1,6 +1,6 @@
 package org.infinispan.server.memcached;
 
-import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedClient;
+import static org.infinispan.server.memcached.test.MemcachedTestingUtil.createMemcachedTextClient;
 import static org.infinispan.server.memcached.test.MemcachedTestingUtil.killMemcachedServer;
 import static org.infinispan.server.memcached.test.MemcachedTestingUtil.startMemcachedTextServer;
 import static org.testng.Assert.assertEquals;
@@ -37,7 +37,7 @@ abstract class MemcachedSingleNodeTest extends SingleCacheManagerTest {
    protected EmbeddedCacheManager createCacheManager() throws Exception {
       cacheManager = createTestCacheManager();
       server = startMemcachedTextServer(cacheManager);
-      client = createMemcachedClient(60000, server.getPort());
+      client = createMemcachedTextClient(60000, server.getPort());
       cache = cacheManager.getCache(server.getConfiguration().defaultCacheName());
       return cacheManager;
    }
