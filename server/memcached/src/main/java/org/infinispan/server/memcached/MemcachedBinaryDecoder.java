@@ -13,6 +13,8 @@ import org.infinispan.server.memcached.logging.Log;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
@@ -109,46 +111,41 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
         defaultLifespanTime = cacheConfiguration.expiration().lifespan();
         defaultMaxIdleTime = cacheConfiguration.expiration().maxIdle();
 
-        if (header.exstrasLength > 0) {
-            checkpoint(MemcachedBinaryDecoderState.DECODE_EXTRAS);
-        } else {
-            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
-        }
+        checkpoint(MemcachedBinaryDecoderState.DECODE_EXTRAS);
     }
 
     void decodeExtras(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasExtras = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.exstrasLength);
+        boolean hasExtras = readElement(buffer, element, header.exstrasLength);
         if (!hasExtras) {
             return;
         }
         extras = element.toByteArray();
-        System.out.println("extras: " + extras);
+        System.out.println("extras: " + Arrays.toString(extras));
         System.out.println("buffer: " + buffer);
-        if (header.keyLength > 0) {
-            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
-        }
+
+        checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
     }
 
     void decodeKey(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasKey = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.keyLength);
+        boolean hasKey = readElement(buffer, element, header.keyLength);
         if (!hasKey) {
             return;
         }
         key = element.toByteArray();
-        System.out.println("key: " + key);
+        System.out.println("key: " + new String(key, StandardCharsets.UTF_8));
         System.out.println("buffer: " + buffer);
-        if (header.bodyLength > 0) {
-            checkpoint(MemcachedBinaryDecoderState.DECODE_KEY);
-        }
+
+        checkpoint(MemcachedBinaryDecoderState.DECODE_VALUE);
     }
 
     void decodeValue(ChannelHandlerContext ctx, ByteBuf buffer) throws IOException {
-        boolean hasValue = readElement(buffer, element, HEADER_PACKAGE_SIZE + header.bodyLength);
+        boolean hasValue = readElement(buffer, element, header.bodyLength - header.exstrasLength - header.keyLength);
         if (!hasValue) {
             return;
         }
         rawValue = element.toByteArray();
-        System.out.println("value: " + rawValue);
+
+        System.out.println("value: " + new String(rawValue, StandardCharsets.UTF_8));
         System.out.println("buffer: " + buffer);
     }
 
@@ -158,10 +155,10 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
             return false;
         }
 
-        byte[] headerStructure = element.toByteArray();
-        byte magic = headerStructure[0];
-        short command = headerStructure[1];
-        int dataType = decodeByte(headerStructure, 5);
+        byte[] rawHeader = element.toByteArray();
+        byte magic = rawHeader[0];
+        short command = rawHeader[1];
+        int dataType = decodeByte(rawHeader, 5);
 
         System.out.println("offset: " + offset);
         System.out.println("magic: " + magic);
@@ -186,12 +183,12 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
             throw new StreamCorruptedException("Unexpected data type value: " + dataType);
         }
 
-        header.keyLength = decodeShort(headerStructure, 2);
-        header.exstrasLength = decodeByte(headerStructure, 4);
-        header.vBucketId = decodeShort(headerStructure, 6);
-        header.bodyLength = decodeUnsignedInt(headerStructure, 8);
-        header.opaque = decodeUnsignedInt(headerStructure, 12);
-        header.cas = decodeUnsignedInt(headerStructure, 16);
+        header.keyLength = decodeShort(rawHeader, 2);
+        header.exstrasLength = decodeByte(rawHeader, 4);
+        header.vBucketId = decodeShort(rawHeader, 6);
+        header.bodyLength = decodeUnsignedInt(rawHeader, 8);
+        header.opaque = decodeUnsignedInt(rawHeader, 12);
+        header.cas = decodeUnsignedInt(rawHeader, 16);
 
         System.out.println("keyLength: " + header.keyLength);
         System.out.println("exstrasLength: " + header.exstrasLength);
@@ -204,22 +201,21 @@ public class MemcachedBinaryDecoder extends ReplayingDecoder<MemcachedBinaryDeco
         return true;
     }
 
-    private boolean readElement(ByteBuf buffer, ByteArrayOutputStream element, long position) throws IOException {
-        long start = offset;
-        System.out.println("position: " + position);
+    private boolean readElement(ByteBuf buffer, ByteArrayOutputStream element, long size) throws IOException {
+        System.out.println("size: " + size);
         System.out.println("offset: " + offset);
-        for (long i = offset; i < position; i++) {
+        while (offset < size) {
             byte next;
             try {
                 next = buffer.readByte();
                 offset++;
             } catch (IndexOutOfBoundsException e) {
-                System.out.println(e);
                 return false;
             }
             element.write(next);
         }
-        log.debugf("Reading %d element bytes", position - start);
+        log.debugf("Reading %d element bytes", size);
+        System.out.println("Reading element bytes: " + size);
         return true;
     }
 
