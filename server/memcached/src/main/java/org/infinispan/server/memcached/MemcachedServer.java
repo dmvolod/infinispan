@@ -23,6 +23,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOutboundHandler;
+import org.infinispan.server.memcached.logging.MemcachedAccessLogging;
 
 /**
  * Memcached server defining its decoder/encoder settings. In fact, Memcached does not use an encoder since there's
@@ -41,6 +42,7 @@ public class MemcachedServer extends AbstractProtocolServer<MemcachedServerConfi
    private final static Log log = LogFactory.getLog(MethodHandles.lookup().lookupClass(), Log.class);
    protected ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
    private AdvancedCache<byte[], byte[]> memcachedCache;
+   private MemcachedAccessLogging accessLogging = new MemcachedAccessLogging();
 
    @Override
    protected void startInternal(MemcachedServerConfiguration configuration, EmbeddedCacheManager cacheManager) {
@@ -61,6 +63,10 @@ public class MemcachedServer extends AbstractProtocolServer<MemcachedServerConfi
       memcachedCache = cache.getAdvancedCache();
 
       super.startInternal(configuration, cacheManager);
+   }
+
+   public MemcachedAccessLogging accessLogging() {
+      return accessLogging;
    }
 
    @Override

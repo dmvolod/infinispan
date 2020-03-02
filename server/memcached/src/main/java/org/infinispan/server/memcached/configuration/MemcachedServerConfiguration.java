@@ -31,6 +31,7 @@ public class MemcachedServerConfiguration extends ProtocolServerConfiguration {
 
    public static final AttributeDefinition<MediaType> CLIENT_ENCODING = AttributeDefinition.builder("client-encoding", APPLICATION_OCTET_STREAM, MediaType.class).immutable().build();
    private final Attribute<MediaType> clientEncoding;
+   private final AuthenticationConfiguration authentication;
 
    public static AttributeSet attributeDefinitionSet() {
       return new AttributeSet(MemcachedServerConfiguration.class, ProtocolServerConfiguration.attributeDefinitionSet(), WORKER_THREADS, CLIENT_ENCODING);
@@ -38,8 +39,9 @@ public class MemcachedServerConfiguration extends ProtocolServerConfiguration {
 
    public static ElementDefinition ELEMENT_DEFINITION = new DefaultElementDefinition("memcached-connector");
 
-   MemcachedServerConfiguration(AttributeSet attributes, SslConfiguration ssl) {
+   MemcachedServerConfiguration(AttributeSet attributes, SslConfiguration ssl, AuthenticationConfiguration authentication) {
       super(attributes, ssl);
+      this.authentication = authentication;
       clientEncoding = attributes.attribute(CLIENT_ENCODING);
    }
 
@@ -50,6 +52,10 @@ public class MemcachedServerConfiguration extends ProtocolServerConfiguration {
 
    public MediaType clientEncoding() {
       return clientEncoding.get();
+   }
+
+   public AuthenticationConfiguration authentication() {
+      return authentication;
    }
 
    @Override

@@ -52,6 +52,10 @@
          <artifactId>testng</artifactId>
          <scope>test</scope>
       </dependency>
+      <dependency>
+         <groupId>org.infinispan</groupId>
+         <artifactId>infinispan-clustered-counter</artifactId>
+      </dependency>
    </dependencies>
 
    <build>
