@@ -1,4 +1,4 @@
-package org.infinispan.server.memcached;
+package org.infinispan.server.memcached.ascii;
 
 import java.util.Objects;
 
@@ -21,17 +21,18 @@ import org.infinispan.protostream.annotations.ProtoTypeId;
  */
 @Deprecated
 @ProtoTypeId(ProtoStreamTypeIds.MEMCACHED_METADATA)
-class MemcachedMetadata extends EmbeddedMetadata.EmbeddedLifespanExpirableMetadata {
+public
+class MemcachedTextMetadata extends EmbeddedMetadata.EmbeddedLifespanExpirableMetadata {
 
    @ProtoField(number = 5, defaultValue = "0")
    final long flags;
 
    @ProtoFactory
-   MemcachedMetadata(long flags, long lifespan, NumericVersion numericVersion, SimpleClusteredVersion clusteredVersion) {
+   MemcachedTextMetadata(long flags, long lifespan, NumericVersion numericVersion, SimpleClusteredVersion clusteredVersion) {
       this(flags, lifespan, numericVersion != null ? numericVersion : clusteredVersion);
    }
 
-   private MemcachedMetadata(long flags, long lifespan, EntryVersion version) {
+   private MemcachedTextMetadata(long flags, long lifespan, EntryVersion version) {
       super(lifespan, version);
       this.flags = flags;
    }
@@ -49,7 +50,7 @@ class MemcachedMetadata extends EmbeddedMetadata.EmbeddedLifespanExpirableMetada
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       if (!super.equals(o)) return false;
-      MemcachedMetadata that = (MemcachedMetadata) o;
+      MemcachedTextMetadata that = (MemcachedTextMetadata) o;
       return flags == that.flags;
    }
 
@@ -78,7 +79,7 @@ class MemcachedMetadata extends EmbeddedMetadata.EmbeddedLifespanExpirableMetada
 
       @Override
       public Metadata build() {
-         return new MemcachedMetadata(flags, lifespan == null ? -1 : lifespanUnit.toMillis(lifespan), version);
+         return new MemcachedTextMetadata(flags, lifespan == null ? -1 : lifespanUnit.toMillis(lifespan), version);
       }
    }
 }

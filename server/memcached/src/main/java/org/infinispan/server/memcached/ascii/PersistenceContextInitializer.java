@@ -1,4 +1,4 @@
-package org.infinispan.server.memcached;
+package org.infinispan.server.memcached.ascii;
 
 import org.infinispan.marshall.persistence.impl.PersistenceMarshallerImpl;
 import org.infinispan.protostream.SerializationContextInitializer;
@@ -15,7 +15,7 @@ import org.infinispan.protostream.annotations.AutoProtoSchemaBuilder;
 @Deprecated
 @AutoProtoSchemaBuilder(
       dependsOn = org.infinispan.marshall.persistence.impl.PersistenceContextInitializer.class,
-      includeClasses = MemcachedMetadata.class,
+      includeClasses = MemcachedTextMetadata.class,
       schemaFileName = "persistence.memcached.proto",
       schemaFilePath = "proto/generated",
       schemaPackageName = "org.infinispan.persistence.memcached")

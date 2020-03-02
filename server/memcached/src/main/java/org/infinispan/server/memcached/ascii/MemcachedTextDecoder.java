@@ -1,35 +1,32 @@
-package org.infinispan.server.memcached;
+package org.infinispan.server.memcached.ascii;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.infinispan.commons.dataconversion.MediaType.TEXT_PLAIN_TYPE;
 import static org.infinispan.server.core.transport.ExtendedByteBuf.buffer;
 import static org.infinispan.server.core.transport.ExtendedByteBuf.wrappedBuffer;
-import static org.infinispan.server.memcached.TextProtocolUtil.CLIENT_ERROR_BAD_FORMAT;
-import static org.infinispan.server.memcached.TextProtocolUtil.CRLF;
-import static org.infinispan.server.memcached.TextProtocolUtil.CRLFBytes;
-import static org.infinispan.server.memcached.TextProtocolUtil.DELETED;
-import static org.infinispan.server.memcached.TextProtocolUtil.END;
-import static org.infinispan.server.memcached.TextProtocolUtil.END_SIZE;
-import static org.infinispan.server.memcached.TextProtocolUtil.ERROR;
-import static org.infinispan.server.memcached.TextProtocolUtil.EXISTS;
-import static org.infinispan.server.memcached.TextProtocolUtil.MAX_UNSIGNED_LONG;
-import static org.infinispan.server.memcached.TextProtocolUtil.MIN_UNSIGNED;
-import static org.infinispan.server.memcached.TextProtocolUtil.NOT_FOUND;
-import static org.infinispan.server.memcached.TextProtocolUtil.NOT_STORED;
-import static org.infinispan.server.memcached.TextProtocolUtil.OK;
-import static org.infinispan.server.memcached.TextProtocolUtil.SERVER_ERROR;
-import static org.infinispan.server.memcached.TextProtocolUtil.SP;
-import static org.infinispan.server.memcached.TextProtocolUtil.STORED;
-import static org.infinispan.server.memcached.TextProtocolUtil.TOUCHED;
-import static org.infinispan.server.memcached.TextProtocolUtil.VALUE;
-import static org.infinispan.server.memcached.TextProtocolUtil.VALUE_SIZE;
-import static org.infinispan.server.memcached.TextProtocolUtil.ZERO;
-import static org.infinispan.server.memcached.TextProtocolUtil.concat;
-import static org.infinispan.server.memcached.TextProtocolUtil.extractString;
-import static org.infinispan.server.memcached.TextProtocolUtil.readDiscardedLine;
-import static org.infinispan.server.memcached.TextProtocolUtil.readElement;
-import static org.infinispan.server.memcached.TextProtocolUtil.readSplitLine;
-import static org.infinispan.server.memcached.TextProtocolUtil.skipLine;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.CLIENT_ERROR_BAD_FORMAT;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.CRLF;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.CRLFBytes;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.DELETED;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.END;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.END_SIZE;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.ERROR;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.EXISTS;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.MAX_UNSIGNED_LONG;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.MIN_UNSIGNED;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.NOT_FOUND;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.NOT_STORED;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.OK;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.SERVER_ERROR;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.SP;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.STORED;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.TOUCHED;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.VALUE;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.VALUE_SIZE;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.ZERO;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.concat;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.extractString;
+import static org.infinispan.server.memcached.ascii.TextProtocolUtil.skipLine;
 
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -87,11 +84,11 @@ import io.netty.util.CharsetUtil;
  * @deprecated since 10.1. Will be removed unless a binary protocol encoder/decoder is implemented.
  */
 @Deprecated
-public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
+public class MemcachedTextDecoder extends ReplayingDecoder<MemcachedDecoderState> {
 
-   public MemcachedDecoder(AdvancedCache<byte[], byte[]> memcachedCache, ScheduledExecutorService scheduler,
-                           NettyTransport transport, Predicate<? super String> ignoreCache,
-                           MediaType valuePayload) {
+   public MemcachedTextDecoder(AdvancedCache<byte[], byte[]> memcachedCache, ScheduledExecutorService scheduler,
+                               NettyTransport transport, Predicate<? super String> ignoreCache,
+                               MediaType valuePayload) {
 
       super(MemcachedDecoderState.DECODE_HEADER);
       this.cache = (AdvancedCache<byte[], byte[]>) memcachedCache.withMediaType(TEXT_PLAIN_TYPE, valuePayload.toString());
@@ -106,7 +103,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
    protected final NettyTransport transport;
    protected final Predicate<? super String> ignoreCache;
 
-   private final static Log log = LogFactory.getLog(MemcachedDecoder.class, Log.class);
+   private final static Log log = LogFactory.getLog(MemcachedTextDecoder.class, Log.class);
    private final static boolean isTrace = log.isTraceEnabled();
 
    private static final int SecondsInAMonth = 60 * 60 * 24 * 30;
@@ -308,7 +305,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
       if (cacheEntry == null) {
          return createNotExistResponse();
       }
-      final Metadata newMetadata = new MemcachedMetadata.Builder()
+      final Metadata newMetadata = new MemcachedTextMetadata.Builder()
               .merge(cacheEntry.getMetadata())
               .lifespan(params.lifespan > 0 ? toMillis(params.lifespan) : -1)
               .build();
@@ -344,11 +341,11 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
 
 
    private Optional<Boolean> readHeader(ByteBuf buffer, RequestHeader header) throws IOException {
-      boolean endOfOp = readElement(buffer, byteBuffer);
+      boolean endOfOp = TextProtocolUtil.readElement(buffer, byteBuffer);
       String streamOp = extractString(byteBuffer);
       MemcachedOperation op = toRequest(streamOp, endOfOp, buffer);
       if (op == MemcachedOperation.StatsRequest && !endOfOp) {
-         String line = readDiscardedLine(buffer).trim();
+         String line = TextProtocolUtil.readDiscardedLine(buffer).trim();
          if (!line.isEmpty())
             throw new StreamCorruptedException("Stats command does not accept arguments: " + line);
          else
@@ -365,7 +362,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
    }
 
    private KeyValuePair<byte[], Boolean> readKey(ByteBuf b) throws IOException {
-      boolean endOfOp = readElement(b, byteBuffer);
+      boolean endOfOp = TextProtocolUtil.readElement(b, byteBuffer);
       byte[] keyBytes = byteBuffer.toByteArray();
       byte[] k = checkKeyLength(keyBytes, endOfOp, b);
       return new KeyValuePair<>(k, endOfOp);
@@ -423,7 +420,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
    }
 
    private boolean readParameters(Channel ch, ByteBuf b) throws IOException {
-      List<String> args = readSplitLine(b);
+      List<String> args = TextProtocolUtil.readSplitLine(b);
       boolean endOfOp = false;
       if (args.size() != 0) {
          if (isTrace) log.tracef("Operation parameters: %s", args);
@@ -862,7 +859,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
    }
 
    private Metadata buildMetadata() {
-      return new MemcachedMetadata.Builder()
+      return new MemcachedTextMetadata.Builder()
             .flags(params.flags)
             .version(generateVersion(cache))
             .lifespan(params.lifespan > 0 ? toMillis(params.lifespan) : -1)
@@ -998,8 +995,8 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
 
       byte[] flags;
       Metadata metadata = entry.getMetadata();
-      if (metadata instanceof MemcachedMetadata) {
-         long metaFlags = ((MemcachedMetadata) metadata).flags;
+      if (metadata instanceof MemcachedTextMetadata) {
+         long metaFlags = ((MemcachedTextMetadata) metadata).flags;
          flags = String.valueOf(metaFlags).getBytes();
       } else {
          flags = ZERO;
@@ -1101,7 +1098,7 @@ public class MemcachedDecoder extends ReplayingDecoder<MemcachedDecoderState> {
             return MemcachedOperation.QuitRequest;
          default:
             if (!endOfOp) {
-               String line = readDiscardedLine(buffer); // Read rest of line to clear the operation
+               String line = TextProtocolUtil.readDiscardedLine(buffer); // Read rest of line to clear the operation
                log.debugf("Unexpected operation '%s', rest of line contains: %s", commandName, line);
             }
             throw new UnknownOperationException("Unknown operation: " + commandName);

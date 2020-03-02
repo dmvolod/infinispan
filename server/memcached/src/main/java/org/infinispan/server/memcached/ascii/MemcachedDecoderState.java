@@ -1,4 +1,4 @@
-package org.infinispan.server.memcached;
+package org.infinispan.server.memcached.ascii;
 
 /**
  * Protocol decoding state

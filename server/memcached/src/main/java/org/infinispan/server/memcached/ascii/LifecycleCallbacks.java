@@ -1,4 +1,4 @@
-package org.infinispan.server.memcached;
+package org.infinispan.server.memcached.ascii;
 
 import org.infinispan.configuration.global.GlobalConfiguration;
 import org.infinispan.factories.GlobalComponentRegistry;

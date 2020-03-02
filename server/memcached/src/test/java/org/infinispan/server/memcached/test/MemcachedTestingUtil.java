@@ -9,7 +9,7 @@ import org.infinispan.Cache;
 import org.infinispan.commons.dataconversion.MediaType;
 import org.infinispan.commons.logging.LogFactory;
 import org.infinispan.manager.EmbeddedCacheManager;
-import org.infinispan.server.memcached.MemcachedDecoder;
+import org.infinispan.server.memcached.ascii.MemcachedTextDecoder;
 import org.infinispan.server.memcached.MemcachedServer;
 import org.infinispan.server.memcached.configuration.MemcachedServerConfigurationBuilder;
 import org.infinispan.server.memcached.logging.Log;
@@ -69,7 +69,7 @@ public class MemcachedTestingUtil {
          @Override
          public ChannelInboundHandler getDecoder() {
             Cache<byte[], byte[]> cache = getCacheManager().getCache(cacheName);
-            return new MemcachedDecoder(cache.getAdvancedCache(), scheduler, transport, s -> false, valueMediaType);
+            return new MemcachedTextDecoder(cache.getAdvancedCache(), scheduler, transport, s -> false, valueMediaType);
          }
 
          @Override
