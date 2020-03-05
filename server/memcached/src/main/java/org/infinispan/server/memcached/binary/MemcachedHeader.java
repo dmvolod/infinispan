@@ -103,6 +103,10 @@ public class MemcachedHeader {
       return optCache;
    }
 
+   public static MemcachedEncoder encoder() {
+      return new MemcachedBinaryEncoder();
+   }
+
    @Override
    public String toString() {
       return "MemcachedHeader{" +

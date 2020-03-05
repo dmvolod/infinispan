@@ -24,7 +24,7 @@ abstract class BaseDecoder extends ByteToMessageDecoder {
    protected final MemcachedServer server;
 
    protected Authentication auth;
-   protected TransactionRequestProcessor cacheProcessor;
+   protected CacheRequestProcessor cacheProcessor;
    protected CounterRequestProcessor counterProcessor;
    protected MultimapRequestProcessor multimapProcessor;
    protected TaskRequestProcessor taskProcessor;

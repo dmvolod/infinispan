@@ -48,10 +48,6 @@ public interface MemcachedEncoder {
 
    ByteBuf emptyResponse(MemcachedHeader header, MemcachedServer server, Channel channel, OperationStatus status);
 
-   default ByteBuf pingResponse(MemcachedHeader header, MemcachedServer server, Channel channel, OperationStatus status) {
-      return emptyResponse(header, server, channel, status);
-   }
-
    ByteBuf statsResponse(MemcachedHeader header, MemcachedServer server, Channel channel, Stats stats, NettyTransport transport, ComponentRegistry cacheRegistry);
 
    ByteBuf valueWithVersionResponse(MemcachedHeader header, MemcachedServer server, Channel channel, byte[] value, long version);
@@ -82,8 +78,6 @@ public interface MemcachedEncoder {
 
    ByteBuf longResponse(MemcachedHeader header, MemcachedServer server, Channel channel, long value);
 
-   ByteBuf transactionResponse(MemcachedHeader header, MemcachedServer server, Channel channel, int xaReturnCode);
-
    OperationStatus errorStatus(Throwable t);
 
    /**
@@ -95,6 +89,4 @@ public interface MemcachedEncoder {
     * Writes a {@link ClientCounterEvent}, including its header, using a giver channel buffer.
     */
    void writeCounterEvent(ClientCounterEvent event, ByteBuf buffer);
-
-   ByteBuf recoveryResponse(MemcachedHeader header, MemcachedServer server, Channel channel, Collection<Xid> xids);
 }

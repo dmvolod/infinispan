@@ -1,4 +1,4 @@
-package org.infinispan.server.hotrod.counter.listener;
+package org.infinispan.server.memcached.binary.counter.listener;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -6,9 +6,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.infinispan.commons.marshall.WrappedByteArray;
 import org.infinispan.commons.util.ByRef;
 import org.infinispan.counter.api.CounterManager;
-import org.infinispan.server.hotrod.VersionedEncoder;
 
 import io.netty.channel.Channel;
+import org.infinispan.server.memcached.binary.MemcachedEncoder;
 
 /**
  * The {@link CounterManager} notification manager.
@@ -38,7 +38,7 @@ public class ClientCounterManagerNotificationManager {
    }
 
    public ListenerOperationStatus addCounterListener(byte[] listenerId, byte version,
-                                                     String counterName, Channel channel, VersionedEncoder encoder) {
+                                                     String counterName, Channel channel, MemcachedEncoder encoder) {
       ByRef<ListenerOperationStatus> status = new ByRef<>(ListenerOperationStatus.COUNTER_NOT_FOUND);
       clientManagers
             .compute(wrapId(listenerId), (id, manager) -> add(id, manager, version, counterName, channel, encoder, status));
@@ -56,7 +56,7 @@ public class ClientCounterManagerNotificationManager {
    }
 
    private ClientNotificationManager add(WrappedByteArray id, ClientNotificationManager manager, byte version,
-                                         String counterName, Channel channel, VersionedEncoder encoder, ByRef<ListenerOperationStatus> status) {
+                                         String counterName, Channel channel, MemcachedEncoder encoder, ByRef<ListenerOperationStatus> status) {
       boolean useChannel = false;
       if (manager == null) {
          manager = new ClientNotificationManager(id.getBytes(), counterManager, channel, encoder);
